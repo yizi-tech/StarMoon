@@ -113,7 +113,7 @@ StarMoonZ1ForCausalLMWithMemory  ── MSA 长时记忆变体（memory_layers=N
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-org/StarMoon-z1.git
+git clone https://github.com/yizi-tech/StarMoon.git
 cd StarMoon-z1
 
 # 安装
