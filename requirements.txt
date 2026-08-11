@@ -1,0 +1,24 @@
+# StarMoon-z1 dependencies
+# Install: pip install -r requirements.txt
+
+torch>=2.0.0
+transformers>=4.36.0
+accelerate>=0.25.0
+safetensors>=0.4.0
+sentencepiece>=0.1.99
+numpy>=1.24.0
+datasets>=2.14.0
+
+# FlashAttention (optional, recommended)
+# flash-attn>=2.3.0
+
+# vLLM backend (optional)
+# vllm>=0.3.0
+
+# llama.cpp backend (optional)
+# llama-cpp-python>=0.2.0
+
+# Web server (optional)
+# fastapi>=0.104.0
+# uvicorn>=0.24.0
+# pydantic>=2.0.0
