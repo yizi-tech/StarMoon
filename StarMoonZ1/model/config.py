@@ -5,7 +5,7 @@ StarMoon-z1 模型配置
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, fields
 from typing import Optional, Dict, Any, List
 
 
@@ -61,7 +61,8 @@ class StarMoonZ1Config:
     pad_token_id: int = 0
     torch_dtype: str = "bfloat16"
     use_cache: bool = True
-    
+    model_type: str = "starmoon-z1"      # 模型类型标识：基座 z1；多模态(VL) 覆盖为 y1
+
     # 以下字段为训练推理辅助配置
     head_dim: Optional[int] = None  # 若为 None 则自动计算 hidden_size // num_attention_heads
     num_labels: int = 1  # 用于分类头 (备用)
@@ -82,6 +83,20 @@ class StarMoonZ1Config:
     enable_memory_interleave: bool = True          # 是否启用 Memory Interleave 多轮推理
     max_interleave_rounds: int = 3                 # 最大交错轮数
     msa_routing_loss_coeff: float = 0.0            # 辅助路由损失权重（0=不额外加 loss）
+
+    # ─── 多模态 (Vision-Language) 扩展 ───
+    # 说明: 当 vision_tower 为 None 时，模型退化为纯文本 z1（与现有行为完全一致）。
+    #       仅当 vision_tower 非空时启用视觉通路（Vision Tower + Projector），
+    #       以 <image> 占位符注入 inputs_embeds，不改动 LLM 本体。
+    vision_tower: Optional[str] = None        # 视觉编码器名/路径(如 "google/siglip2-base-patch16-256")；None=关闭
+    vision_hidden_size: Optional[int] = None   # 视觉编码器输出维度（None 时自动从 tower 读取）
+    vision_feature_layer: int = -2             # 取视觉编码器的第几层特征（-2 为 SigLIP-2 常用）
+    projector_type: str = "mlp2"               # "mlp2"(2层MLP) | "linear"
+    projector_hidden_act: str = "gelu"         # MLP 中间激活
+    pixel_shuffle_factor: int = 2              # Pixel Unshuffle 合并因子(2→÷4 token)
+    image_token_id: Optional[int] = None       # <image> 占位符 token id；None=自动用新增特殊 token
+    max_image_tokens: int = 1024               # 单图视觉 token 上限（超过则降采样/裁剪）
+    freeze_vision_tower: bool = True           # 冻结视觉塔（不进反向图）
 
     def __post_init__(self):
         if self.head_dim is None:
@@ -134,12 +149,21 @@ class StarMoonZ1Config:
                     raise ValueError(
                         f"memory_layers contains invalid index {idx!r}; "
                         f"must be in [0, {self.num_hidden_layers - 1}]")
+        if self.vision_tower is not None:
+            if self.projector_type not in ("mlp2", "linear"):
+                raise ValueError(f"projector_type must be 'mlp2' or 'linear', got {self.projector_type}")
+            if self.pixel_shuffle_factor <= 0:
+                raise ValueError(f"pixel_shuffle_factor must be positive, got {self.pixel_shuffle_factor}")
+            if self.max_image_tokens <= 0:
+                raise ValueError(f"max_image_tokens must be positive, got {self.max_image_tokens}")
     
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
     
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "StarMoonZ1Config":
+        _fields = {f.name for f in fields(cls)}
+        config_dict = {k: v for k, v in config_dict.items() if k in _fields}
         return cls(**config_dict)
     
     # ──────────────────────────────────────────
@@ -246,6 +270,16 @@ class StarMoonZ1Config:
             enable_memory_interleave=getattr(hf_config, "enable_memory_interleave", True),
             max_interleave_rounds=getattr(hf_config, "max_interleave_rounds", 3),
             msa_routing_loss_coeff=getattr(hf_config, "msa_routing_loss_coeff", 0.0),
+            # ─── 多模态扩展字段（从 StarMoonZ1 导出的 config.json 回读时必须保留）───
+            vision_tower=getattr(hf_config, "vision_tower", None),
+            vision_hidden_size=getattr(hf_config, "vision_hidden_size", None),
+            vision_feature_layer=getattr(hf_config, "vision_feature_layer", -2),
+            projector_type=getattr(hf_config, "projector_type", "mlp2"),
+            projector_hidden_act=getattr(hf_config, "projector_hidden_act", "gelu"),
+            pixel_shuffle_factor=getattr(hf_config, "pixel_shuffle_factor", 2),
+            image_token_id=getattr(hf_config, "image_token_id", None),
+            max_image_tokens=getattr(hf_config, "max_image_tokens", 1024),
+            freeze_vision_tower=getattr(hf_config, "freeze_vision_tower", True),
         )
     
     @property

@@ -23,6 +23,7 @@
 - [安装](#安装)
 - [快速开始](#快速开始)
 - [MSA 长时记忆](#msa-长时记忆)
+- [多模态视觉-语言 (VL)](#多模态视觉-语言-vl)
 - [三阶段训练](#三阶段训练)
 - [评测框架](#评测框架)
 - [模型预设](#模型预设)
@@ -63,6 +64,7 @@ StarMoon-z1 特别适合以下场景：
 - **FlashAttention v2** + **滑动窗口注意力**（支持 256K 上下文）
 - **深度缩放初始化** — 深网络（28 层）训练不发散
 - **MSA 长时记忆（原生集成）** — 文档级稀疏路由 + 压缩记忆库 + 带记忆生成 / Memory Interleave，`memory_layers=None` 时零开销退化为标准 Decoder
+- **多模态 (VL) 原生扩展** — SigLIP-2 视觉塔（冻结）+ Pixel Unshuffle + 2 层 MLP Projector，`vision_tower=None` 时零破坏退化为纯文本 z1
 
 ### 训练引擎
 
@@ -105,6 +107,8 @@ StarMoonZ1ForCausalLMWithMemory  ── MSA 长时记忆变体（memory_layers=N
 │   └── 其余层为标准 GQA；encode_documents 离线编码压缩记忆库
 ├── MemoryBank（按层存压缩 K/V/KR + chunk_mask）
 └── generate_with_memory / generate_with_interleave
+
+StarMoonY1ForCausalLMWithVision  ── 多模态 (VL) 变体（已在独立包 StarMoonY1 实现，详见 多模态放这里/StarMoonY1/README.md）
 ```
 
 ---
@@ -220,6 +224,19 @@ python scripts/msa_cli.py query --model ./output/final --memory ./memory.bin --p
 ```
 
 > 说明：本机无 GPU 时无法跑实际前向；建议在 GPU 环境补跑 `tests/test_model.py`（含 `TestMSA`）与带记忆生成 smoke test。
+
+---
+
+## 多模态视觉-语言 (VL) · StarMoon-y1
+
+> 多模态（StarMoon-y1）代码与文档已**独立拆分**到 `多模态放这里/StarMoonY1/`（与基座 `StarMoon-z1` 物理隔离）。
+
+其完整文档（架构、Python API、命令行、`train_vl.py` 两阶段训练、R1 接线、权重迁移）请见：
+
+- **`多模态放这里/StarMoonY1/README.md`** —— 多模态包专属说明
+
+- 代码位置（`StarMoonY1` 包）：`多模态放这里/StarMoonY1/`
+- 训练 / 推理入口脚本：`scripts/train_vl.py`、`scripts/vl_cli.py`
 
 ---
 
@@ -365,8 +382,10 @@ StarMoon-z1/
 │   │   ├── layers.py           # MemorySparseAttention / ChunkMeanPooler / MSABlock
 │   │   ├── model.py            # StarMoonZ1MSAModel / StarMoonZ1ForCausalLMWithMemory
 │   │   └── engine.py           # MSAEngine (编码/查询/增量更新)
+│   ├── vl/                     # ⚠️ 已迁出：多模态代码整体移至仓库根「多模态放这里/StarMoonY1/」（StarMoon-y1 独立包）
 │   ├── scripts/
-│   │   └── msa_cli.py          # MSA 命令行入口 (encode / query)
+│   │   ├── msa_cli.py          # MSA 命令行入口 (encode / query)
+│   │   └── vl_cli.py           # 多模态命令行入口 (ask / encode)
 │   ├── training/
 │   │   ├── trainer.py          # 基类 (AMP, EMA, 早停, 续训, TensorBoard)
 │   │   ├── pretrain.py         # 预训练 (多阶段, 退火, 流式)
@@ -382,6 +401,14 @@ StarMoon-z1/
 │   │   └── dataset.py          # 流式 / 领域混合 / 对话模板
 │   └── utils/
 │       └── distributed.py      # DDP 分布式
+├── 多模态放这里/
+│   └── StarMoonY1/             # 多模态独立包（StarMoon-y1，与 StarMoonZ1 基座分离）
+│       ├── vision_tower.py     # VisionTower (SigLIP-2, 冻结, 惰性加载)
+│       ├── projector.py        # MultiModalProjector (Pixel Unshuffle + 2 层 MLP)
+│       ├── model.py            # StarMoonY1ForCausalLMWithVision (encode/generate)
+│       ├── processor.py        # StarMoonY1VLProcessor (<image> 展开 + pixel_values)
+│       ├── collator.py         # VLCollator (批处理)
+│       └── __init__.py         # 导出 StarMoonY1ForCausalLM 别名 (HuggingFace architectures)
 ├── tests/
 │   └── test_model.py
 ├── setup.py

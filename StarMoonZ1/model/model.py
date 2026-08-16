@@ -240,15 +240,24 @@ class StarMoonZ1Model(nn.Module):
 
     def forward(
         self,
-        input_ids: Tensor,
+        input_ids: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
         past_key_values: Optional[List[Tuple[Tensor, Tensor]]] = None,
         use_cache: bool = False,
         position_ids: Optional[Tensor] = None,
+        inputs_embeds: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Optional[List[Tuple[Tensor, Tensor]]]]:
-        B, T = input_ids.shape
-        device = input_ids.device
-        hidden_states = self.token_embedding(input_ids)
+        if input_ids is None and inputs_embeds is None:
+            raise ValueError("必须提供 input_ids 或 inputs_embeds 之一")
+        if inputs_embeds is not None:
+            # 多模态/外部插件注入：直接复用 embedding 表示，跳过 token_embedding
+            B, T, _ = inputs_embeds.shape
+            device = inputs_embeds.device
+            hidden_states = inputs_embeds
+        else:
+            B, T = input_ids.shape
+            device = input_ids.device
+            hidden_states = self.token_embedding(input_ids)
         if position_ids is not None:
             # 直接使用完整 RoPE 缓存按绝对/段内位置取用 (支持 Packing 与 KV-cache 增量解码)
             cos = self.rope_cos[position_ids].to(device=device, dtype=self.token_embedding.weight.dtype)
@@ -321,14 +330,15 @@ class StarMoonZ1ForCausalLM(nn.Module):
 
     def forward(
         self,
-        input_ids: Tensor,
+        input_ids: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
         labels: Optional[Tensor] = None,
         past_key_values: Optional[List[Tuple[Tensor, Tensor]]] = None,
         use_cache: bool = False,
         position_ids: Optional[Tensor] = None,
+        inputs_embeds: Optional[Tensor] = None,
     ) -> Dict[str, Any]:
-        hidden_states, new_pkv = self.model(input_ids, attention_mask, past_key_values, use_cache, position_ids)
+        hidden_states, new_pkv = self.model(input_ids, attention_mask, past_key_values, use_cache, position_ids, inputs_embeds)
         logits = self.lm_head(hidden_states)
         loss = None
         if labels is not None:
