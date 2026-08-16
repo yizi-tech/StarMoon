@@ -227,19 +227,6 @@ python scripts/msa_cli.py query --model ./output/final --memory ./memory.bin --p
 
 ---
 
-## 多模态视觉-语言 (VL) · StarMoon-y1
-
-> 多模态（StarMoon-y1）代码与文档已**独立拆分**到 `多模态放这里/StarMoonY1/`（与基座 `StarMoon-z1` 物理隔离）。
-
-其完整文档（架构、Python API、命令行、`train_vl.py` 两阶段训练、R1 接线、权重迁移）请见：
-
-- **`多模态放这里/StarMoonY1/README.md`** —— 多模态包专属说明
-
-- 代码位置（`StarMoonY1` 包）：`多模态放这里/StarMoonY1/`
-- 训练 / 推理入口脚本：`scripts/train_vl.py`、`scripts/vl_cli.py`
-
----
-
 ## 三阶段训练
 
 训练最强小参数代码 / 推理模型的推荐路径：
