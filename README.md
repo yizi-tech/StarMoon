@@ -117,7 +117,7 @@ StarMoonY1ForCausalLMWithVision  ── 多模态 (VL) 变体（已在独立包 
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-org/StarMoon-z1.git
+git clone https://github.com/yizi-tech/StarMoon.git
 cd StarMoon-z1
 
 # 安装
